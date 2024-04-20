@@ -23,7 +23,7 @@ UINT WorkerRun(LPVOID param) {
 	while (true) {
 		float current = ((float)clock() - ss->start) / CLOCKS_PER_SEC;
 		if (ss->sendBaseNum != ss->nextSeqNum)
-			ss->timeExpire = 1000 * (ss->e_rto + current);
+			ss->timeExpire = 1000 * (ss->e_rto) + current;
 		else
 			ss->timeExpire = INFINITE;
 		//printf("time: %d, sendBaseNum : %d, nextSeqNum : %d, timeout : %d\n",(int)1000*current, ss->sendBaseNum, ss->nextSeqNum, ss->timeExpire);
@@ -32,7 +32,8 @@ UINT WorkerRun(LPVOID param) {
 		{
 		case (WAIT_TIMEOUT): {
 			int slot = (ss->sendBaseNum) % ss->windSize;
-			printf("Timeout : slot: %d\n", slot);
+			float current2 = ((float)clock() - ss->start) / CLOCKS_PER_SEC;
+			//printf("Timeout : slot: %d\n", slot);
 			if (ss->dups == MAX_RETX) {
 				SetEvent(ss->eQuit);
 				return TIMEOUT;
@@ -69,20 +70,22 @@ UINT WorkerRun(LPVOID param) {
 			if (rh.ackSeq > ss->sendBaseNum) {
 				slot = (rh.ackSeq - 1) % ss->windSize;
 				if (!ss->retx) { // only consider non-retx package
-					printf("Recv Normal : slot: %d\n", slot);
+					//printf("Recv Normal : slot: %d\n", slot);
 					current = ((float)clock() - ss->start) / CLOCKS_PER_SEC;
 					clock_t pkt_start = ss->pending_pkts[slot].txTime;
 					float s_rtt = current - pkt_start;
+					//printf("Real Time Diff : %.2f\n", s_rtt);
+					s_rtt = 0.1;
 					ss->e_rtt = (1 - 0.125) * ss->e_rtt + 0.125 * s_rtt;
 					ss->dev_rtt = (1 - 0.25) * ss->dev_rtt + 0.25 * abs(ss->e_rtt - s_rtt);
 					ss->e_rto = ss->e_rtt + 4 * max(ss->dev_rtt, 0.001);
 				}
 				else {
-					printf("Recv retx : slot: %d\n", slot);
+					//printf("Recv retx : slot: %d\n", slot);
 				}
 				ss->dups = 0;
 				ss->retx = false;
-				ss->timeExpire = ss->e_rto + current; // reset timer
+				ss->timeExpire = 1000 * (ss->e_rto) + current; // reset timer
 				ss->sendBaseNum = rh.ackSeq;
 				ss->ss_stat->ackSeq = ss->nextSeqNum;
 				ss->ss_stat->ackBytes += MAX_PKT_SIZE;
@@ -100,17 +103,17 @@ UINT WorkerRun(LPVOID param) {
 			else if (rh.ackSeq == ss->sendBaseNum) {
 				slot = ss->sendBaseNum % ss->windSize;
 				//printf("Packet Loss : slot: %d, timer : %d\n", slot, ss->timeExpire);
-				printf("Packet Loss : slot: %d\n", slot);
+				//printf("Packet Loss : slot: %d\n", slot);
 				ss->dups++;
 				if (ss->dups == 3 ) {
-					printf("Fast Retx : slot: %d\n", slot);
+					//printf("Fast Retx : slot: %d\n", slot);
 					ss->retx = true;
 					ss->ss_stat->fast_retransmit++;
 					// retransmission
 					current = ((float)clock() - ss->start) / CLOCKS_PER_SEC;
 					ss->pending_pkts[slot].txTime = current;
 					int status;
-					ss->timeExpire = current + ss->e_rto;
+					ss->timeExpire = 1000 * (ss->e_rto) + current;
 					if (status = sendto(ss->sock, ss->pending_pkts[slot].pkt, ss->pending_pkts[slot].size + sizeof(SenderDataHeader), 0, (struct sockaddr*)&ss->remote, sizeof(struct sockaddr_in)) == SOCKET_ERROR) {
 						end = clock();
 						printf("[ %.3f]  Sendto failed with error code: %d\n", ((float)(end - ss->start) / CLOCKS_PER_SEC), WSAGetLastError());
@@ -390,7 +393,7 @@ int SenderSocket::Send(char* buf, int bytes) {
 		p->size = bytes;
 		nextSeqNum++;
 		qFull_val += 1;
-		printf("writing on slot : %d\n", slot);
+		//printf("writing on slot : %d\n", slot);
 		//printf("produce 1 to qFull, current qFull Val: %d,  CurSeqNum of pkt: %d\n", qFull_val, nextSeqNum-1);
 		ReleaseSemaphore(qFull, 1, NULL);
 		break;
