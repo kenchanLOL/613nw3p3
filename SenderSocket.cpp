@@ -75,7 +75,6 @@ UINT WorkerRun(LPVOID param) {
 					clock_t pkt_start = ss->pending_pkts[slot].txTime;
 					float s_rtt = current - pkt_start;
 					//printf("Real Time Diff : %.2f\n", s_rtt);
-					s_rtt = 0.1;
 					ss->e_rtt = (1 - 0.125) * ss->e_rtt + 0.125 * s_rtt;
 					ss->dev_rtt = (1 - 0.25) * ss->dev_rtt + 0.25 * abs(ss->e_rtt - s_rtt);
 					ss->e_rto = ss->e_rtt + 4 * max(ss->dev_rtt, 0.001);
@@ -105,7 +104,7 @@ UINT WorkerRun(LPVOID param) {
 				//printf("Packet Loss : slot: %d, timer : %d\n", slot, ss->timeExpire);
 				//printf("Packet Loss : slot: %d\n", slot);
 				ss->dups++;
-				if (ss->dups == 3 ) {
+				if (ss->dups == 3) {
 					//printf("Fast Retx : slot: %d\n", slot);
 					ss->retx = true;
 					ss->ss_stat->fast_retransmit++;
@@ -176,7 +175,7 @@ SenderSocket::SenderSocket(Stat* stat) {
 	}
 	eQuit = CreateEvent(NULL, true, false, NULL);
 	socketReady = CreateEvent(NULL, false, false, NULL);
-	 
+
 }
 
 SenderSocket::~SenderSocket()
@@ -190,7 +189,7 @@ int SenderSocket::Open(char* targetHost, int magic_port, int senderWindow, LinkP
 	if (isConnected) {
 		return ALREADY_CONNECTED;
 	}
-	e_rto = max(1, 2*lp->RTT);
+	e_rto = max(1, 2 * lp->RTT);
 	e_rtt = lp->RTT;
 	dev_rtt = 0;
 	tHost = targetHost;
@@ -206,7 +205,7 @@ int SenderSocket::Open(char* targetHost, int magic_port, int senderWindow, LinkP
 		if ((target = gethostbyname(targetHost)) == NULL)
 		{
 			int err = WSAGetLastError();
-			printf("[%.3f] --> target %s is invalid\n", ((double) (clock()-start))/CLOCKS_PER_SEC, targetHost);
+			printf("[%.3f] --> target %s is invalid\n", ((double)(clock() - start)) / CLOCKS_PER_SEC, targetHost);
 			WSACleanup();
 			return INVALID_NAME;
 		}
@@ -232,12 +231,12 @@ int SenderSocket::Open(char* targetHost, int magic_port, int senderWindow, LinkP
 	//WaitForSingleObject(workerQ, INFINITE);
 
 	for (int i = 0; i < nOpenAttempt; i++) {
-		char* ip = inet_ntoa(server.sin_addr);
+		char* ip = inet_ntoa(server.sin_addr);	
 		double time = ((double)(clock() - start)) / CLOCKS_PER_SEC;
 		//printf("[%.3f] --> SYN %d (attempt %d of %d, RTO %.3f) to %s\n", time, ssh.sdh.seq, i+1, nOpenAttempt, 1.0, ip);
 		clock_t rtt_start = clock();
 		int status;
-		if (status = sendto(sock, (char*) &ssh, sizeof(ssh), 0, (struct sockaddr*)&server, sizeof(struct sockaddr_in)) != SOCKET_ERROR) {
+		if (status = sendto(sock, (char*)&ssh, sizeof(ssh), 0, (struct sockaddr*)&server, sizeof(struct sockaddr_in)) != SOCKET_ERROR) {
 			timeval timeout;
 			timeout.tv_sec = (long)e_rto;
 			timeout.tv_usec = (e_rto - (long)e_rto) * 1000000;
@@ -254,7 +253,7 @@ int SenderSocket::Open(char* targetHost, int magic_port, int senderWindow, LinkP
 					//printf("[ %.3f]  --> failed recvfrom() with %d\n", ((float)(clock() - rtt_start) / CLOCKS_PER_SEC), WSAGetLastError());
 					return FAILED_RECV;
 				}
-				else if (rh.flags.SYN == 1 && rh.flags.ACK == 1){
+				else if (rh.flags.SYN == 1 && rh.flags.ACK == 1) {
 					float s_rtt = (float)(clock() - rtt_start) / CLOCKS_PER_SEC;
 					e_rtt = (1 - 0.125) * e_rtt + 0.125 * s_rtt;
 					dev_rtt = (1 - 0.25) * dev_rtt + 0.25 * abs(e_rtt - s_rtt);
@@ -293,6 +292,7 @@ int SenderSocket::Open(char* targetHost, int magic_port, int senderWindow, LinkP
 	}
 	return TIMEOUT;
 }
+
 
 int SenderSocket::Close() {
 
@@ -375,7 +375,7 @@ int SenderSocket::Close() {
 }
 
 int SenderSocket::Send(char* buf, int bytes) {
-	HANDLE arr[] = {qEmpty, eQuit };
+	HANDLE arr[] = { qEmpty, eQuit };
 	int ret = WaitForMultipleObjects(2, arr, false, INFINITE);
 	switch (ret)
 	{
@@ -400,7 +400,7 @@ int SenderSocket::Send(char* buf, int bytes) {
 	}
 	case WAIT_OBJECT_0 + 1:
 	{
-		
+
 		return FAILED_SEND;
 	}
 	default:
